@@ -1,5 +1,7 @@
 # Decentralized Conviction Voting using Ceramic
 
+![](ceramic_voting.png)
+
 Inspired by:
 https://blog.ceramic.network/trust-minimized-off-chain-conviction-voting
 
@@ -19,6 +21,7 @@ Node.js app deployed to Vercel with Github Actions to trigger function with cron
 * `npm run schema:ts` converts json-schema to Typescript types
 * Server route `GET /config` returns snapshot did, definitions and schemas
 * Server route `POST /snapshot` triggers an update for the ConvictionState (triggered from Github Actions cron job)
+* Server route `POST /proposal` add a user-created proposal to the convcition state (so we don't have to wait for update trigger)
 
 ### Voting app
 
