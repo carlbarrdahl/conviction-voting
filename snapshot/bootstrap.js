@@ -11,23 +11,18 @@ const ConvictionStateSchema = require("./src/schemas/conviction-state.json")
 const ConvictionsSchema = require("./src/schemas/convictions.json")
 const ProposalSchema = require("./src/schemas/proposal.json")
 
-const CERAMIC_HOST = "http://localhost:7007"
-// process.env.NODE_ENV === "production"
-//   ? "https://ceramic-clay.3boxlabs.com"
-//   : "http://localhost:7007"
-
-const ceramic = new Ceramic(CERAMIC_HOST)
 const SEED = process.env.SEED
-const CONTEXT =
-  process.env.CONTEXT ||
-  "eip155:1/erc20:0x56687cf29ac9751ce2a4e764680b6ad7e668942e"
+const CERAMIC_HOST = process.env.CERAMIC_HOST
+const ADDRESS = process.env.ADDRESS
 
 const config = {
   did: null,
-  context: CONTEXT,
+  context: ADDRESS,
   definitions: {},
   schemas: {},
 }
+
+const ceramic = new Ceramic(CERAMIC_HOST)
 
 async function run() {
   console.log("Bootstrapping schemas and definitions")
@@ -38,6 +33,7 @@ async function run() {
   console.log("Ceramic initialized", ceramic?.did?.id)
 
   config.did = ceramic?.did?.id
+  config.ceramicHost = CERAMIC_HOST
 
   await Promise.all(
     [ConvictionStateSchema, ConvictionsSchema, ProposalSchema].map(

@@ -1,6 +1,6 @@
 import { fetchTokenHolders } from "./thegraph"
 import {
-  fetchConvictionState,
+  fetchOrCreateConvictionState,
   fetchConvictionDocID,
   fetchDocuments,
   setConvictionState,
@@ -13,7 +13,7 @@ const ALPHA = Number(process.env.ALPHA || 2 ** (-1 / (7 * NUM_UPDATES))) // 7 da
 // Add a new proposal to the conviction state so we don't have to wait for a snapshot update
 export async function addProposal(proposal: string) {
   console.log("Adding proposal to ConvictionState")
-  const state = await fetchConvictionState()
+  const state = await fetchOrCreateConvictionState()
 
   state.proposals.push({ proposal, totalConviction: 0, triggered: false })
   return setConvictionState(state)
@@ -23,19 +23,20 @@ export async function updateSnapshot(address: string) {
   console.log("Updating ConvictionState snapshot for:", address)
 
   // Fetch previous convictionState (or create a new one)
-  const convictionState = await fetchConvictionState()
+  console.log("Fetching previous convictionState")
+  const convictionState = await fetchOrCreateConvictionState()
   console.log("Previous ConvictionState loaded:", convictionState)
 
-  // Fetch token holders + supply from TheGraph
   console.log("Fetching token holders and supply")
   const { holders, supply } = await fetchTokenHolders(convictionState.context)
   console.log(`${holders.length} holders found with supply: ${supply}`)
 
   // Create participants state with ref to ceramic convictions docId
+  console.log("Creating participants state from token holders")
   const participants = (
     await Promise.all(
       holders.map(async ({ address, balance }) => {
-        console.log(address, balance)
+        console.log("Fetching convictions docID for:", address)
         const convictions = await fetchConvictionDocID(address)
         if (!convictions) return
         return {
@@ -45,20 +46,20 @@ export async function updateSnapshot(address: string) {
         }
       })
     )
-  ).filter(Boolean) as any[] // Remove undefined
-  console.log(participants)
+  ).filter(Boolean) as Participants[] // Remove undefined
+
   // Fetch proposal and conviction documents from Ceramic
   console.log(`Fetching ceramic documents for ${participants.length} holders`)
   const { convictionDocs, proposalDocs } = await fetchDocuments(participants)
 
-  console.log(`Calculating next conviction state`, convictionDocs, proposalDocs)
   // Calculate next conviction for proposals
   // https://github.com/1Hive/conviction-voting-cadcad/blob/master/algorithm_overview.ipynb
-  const proposals = Object.entries(proposalDocs).map(([id, proposal]: any) => {
-    // Fetch previous conviction state for proposal
-    const previous = convictionState.proposals.find(
-      (p: any) => p.proposal === id
-    )
+  console.log(`Calculating next conviction state`, convictionDocs, proposalDocs)
+  const proposals = Object.entries(proposalDocs).map(([id, proposal]) => {
+    // Get previous conviction state for current proposal
+    const previous = convictionState.proposals.find(p => p.proposal === id)
+
+    // Previous conviction (support)
     const conviction = previous ? previous.totalConviction : 0
 
     // Sum the total funds for each participants support for the proposal
@@ -66,8 +67,8 @@ export async function updateSnapshot(address: string) {
 
     // Calculate if proposal has reached enough conviction
     const threshold = triggerThreshold({
-      requested: Number(proposal.amount),
       funds,
+      requested: Number(proposal.amount),
       supply: Number(convictionState.supply),
       alpha: ALPHA,
       params: {
@@ -78,13 +79,11 @@ export async function updateSnapshot(address: string) {
 
     const totalConviction = ALPHA * conviction + funds
     const triggered = totalConviction >= threshold
-    return {
-      proposal: id,
-      totalConviction,
-      triggered,
-    }
+
+    return { proposal: id, totalConviction, triggered }
   })
 
+  // Update new convictionState
   return setConvictionState({
     context: convictionState.context,
     supply,
@@ -102,7 +101,7 @@ export function sumSupport(
   return participants.reduce<number>((sum, participant) => {
     // Get conviction for current proposal
     const conviction = (participant.data?.convictions || []).find(
-      (c: any) => c.proposal === proposalId
+      c => c.proposal === proposalId
     )
     if (!conviction) {
       return sum

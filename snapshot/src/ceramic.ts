@@ -1,3 +1,4 @@
+require("dotenv").config()
 global["fetch"] = require("node-fetch")
 import Ceramic from "@ceramicnetwork/http-client"
 import { IDX } from "@ceramicstudio/idx"
@@ -6,12 +7,7 @@ import fromString from "uint8arrays/from-string"
 
 import { Convictions, ConvictionState, Participants, Proposal } from "./types"
 
-const CERAMIC_HOST = "http://localhost:7007" // "https://ceramic-clay.3boxlabs.com"
-// process.env.NODE_ENV === "production"
-//   ? "https://ceramic-clay.3boxlabs.com"
-//   : "http://localhost:7007"
-
-// node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+const CERAMIC_HOST = process.env.CERAMIC_HOST
 const SEED = process.env.SEED || "<invalid_seed>"
 
 let config: any = {}
@@ -45,12 +41,11 @@ async function authCeramic() {
 
 export async function fetchConvictionDocID(address: string) {
   const did = await toDID(address)
-  console.log(did, config.definitions.convictions)
   if (!did) return
   return idx.getRecordID(config.definitions.convictions, did)
 }
 
-export async function fetchConvictionState() {
+export async function fetchOrCreateConvictionState() {
   await authCeramic()
   // Get or create state
   const state =

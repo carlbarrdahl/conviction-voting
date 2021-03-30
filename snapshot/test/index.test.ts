@@ -93,8 +93,15 @@ const convictionState = {
   ],
 }
 
-// jest.spyOn(Ceramic.prototype, "setDIDProvider").mockResolvedValue()
-// jest.spyOn(Ceramic.prototype, "loadDocument")
+const tokenHolders = {
+  supply: 10000,
+  holders: [
+    { address: "0x6A4E948a81E20802C91bB48D825A741a6F1E9062", balance: 1000 },
+    { address: "0x7eb9d67f9daea510399a1ee978b36e66626058d1", balance: 3000 },
+    { address: "0x7eb9d67f9daea510399a1ee978b36e66626058e1", balance: 1500 },
+  ],
+}
+
 describe("Snapshot service", () => {
   it("builds a ConvictionState", async () => {
     const state = await updateSnapshot(
